@@ -1,0 +1,38 @@
+# Getting Started
+
+In this tutorial we will be building an input component. The users will
+be able to input a word into an input field, upon which a list of words
+will be shown to them.
+
+We'll start with the backend and add the frontend after. To begin, set up a Next.js project:
+
+```
+npx create-next-app
+```
+
+We'll call the app `input-component`. The default port is `3000`, but if we
+want to change it, open `package.json` and add change `scripts` to for example
+
+```json highlight=2,4
+"scripts": {
+    "dev": "next dev -p 3300",
+    "build": "next build",
+    "start": "next start -p 3300"
+}
+```
+
+Another useful but optional feature is [absolute import](https://nextjs.org/docs/advanced-features/module-path-aliases). If we want to enable it, create
+`jsconfig.json` and add for example the following content
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/components/*": ["components/*"],
+      "@/styles/*": ["styles/*"],
+      "@/lib/*": ["lib/*"]
+    }
+  }
+}
+```

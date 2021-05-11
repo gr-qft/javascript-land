@@ -1,0 +1,289 @@
+# The Backend
+
+In this section we'll set up the backend using Heroku Postgres, Prisma, and GraphQL. Specifically, we'll set up a GraphQL server that will serve
+queries using data from a PostgresSQL database provided by Heroku Postgres.
+Prisma functions as an ORM sitting between the database and the server.
+
+## Heroku Postgres
+
+Start by creating a Heroku account. Then create a new app, choose **Resources**, search for **Heroku Postgres**, and add it. Then click
+on the newly created resource and choose **Settings**. The option
+**Database Credentials** (specifically **URI** inside it) is what we'll need.
+
+## Prisma
+
+Next, we'll add Prisma:
+
+```
+npm install prisma --save-dev
+```
+
+Then start it by typing
+
+```
+npx prisma init
+```
+
+which will create two new files, `prisma/schema.prisma` and `.env`. Inside the latter we'll replace the value of `DATABASE_URL`
+with the value of `URI` provided by **Database Credentials** from Heroku.
+
+Then, fill `prisma/schema.prisma` with the following content:
+
+```js highlight=10,11,12,13
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Word {
+  id        Int     @default(autoincrement()) @id
+  content   String
+}
+```
+
+Then, type the following to create tables in the database:
+
+```
+npx prisma db push --preview-feature
+```
+
+import Callout from 'nextra-theme-docs/callout'
+
+<Callout>
+  You might not need `--preview-feature` and only need `npx prisma db push`
+  instead. Check your version of **prisma**. In any case, having
+  `--preview-feature` will still work.
+</Callout>
+
+To inspect the database, type
+
+```
+npx prisma studio
+```
+
+and open port `5555`.
+
+We will populate the database with a
+list of words from [here](https://github.com/dariusk/corpora/blob/master/data/words/common.json), with the help of the Prisma client. To start, add the client by typing
+
+```
+npm install @prisma/client
+```
+
+Then, save the list of words to the folder `prisma`. Then, create `prisma/seed.js`:
+
+```js
+const { PrismaClient } = require('@prisma/client')
+const words = require('./common.json').commonWords
+
+const prisma = new PrismaClient()
+
+async function main() {
+  for (let word of words) {
+    await prisma.word.create({
+      data: {
+        content: word,
+      },
+    })
+  }
+}
+
+main()
+  .catch((e) => {
+    console.log(e)
+    process.exit(1)
+  })
+  .finally(() => {
+    prisma.$disconnect()
+  })
+```
+
+and run
+
+```
+npx prisma db seed --preview-feature
+```
+
+Then, if we visit port `5555` again, we should see that the database
+has been seeded.
+
+<Callout>
+  Read more about
+  [seeding](https://www.prisma.io/docs/guides/database/seed-database) and Prisma
+  [CRUD](https://www.prisma.io/docs/concepts/components/prisma-client/crud#create).
+</Callout>
+
+We have used the client to seed the database. Note that if we want the Prisma schema to take effect, we need to run
+
+```
+npx prisma generate
+```
+
+which indeed needs to be run every time the schema changes. So, run this, and make the client available in the app by creating `lib/prisma.js`:
+
+```js
+import { PrismaClient } from '@prisma/client'
+
+let prisma
+
+if (process.env.NODE_ENV === 'production') {
+  prisma = new PrismaClient()
+} else {
+  if (!global.prisma) {
+    global.prisma = new PrismaClient()
+  }
+  prisma = global.prisma
+}
+
+export default prisma
+```
+
+To test that the client is working properly, replace the content of `index.js` with
+
+```js
+import styles from '@/styles/Home.module.css'
+import prisma from '@/lib/prisma'
+
+export default function Home({ words }) {
+  return (
+    <div className={styles.container}>
+      {words.map((word) => (
+        <div key={word.id}> {word.content} </div>
+      ))}
+    </div>
+  )
+}
+
+export async function getStaticProps() {
+  const words = await prisma.word.findMany()
+
+  return {
+    props: { words },
+  }
+}
+```
+
+## GraphQL
+
+Next, we'll add a GraphQL server and complete the backend part of the application. The following packages are needed:
+
+```js
+npm install apollo-server-micro graphql
+```
+
+We can now set up a GraphQL server, taking advantage of Next.js route api. So, create `pages/api/graphql.js` with the following content:
+
+```js
+import { ApolloServer, gql } from 'apollo-server-micro'
+import prisma from '@/lib/prisma'
+
+const typeDefs = gql`
+  type Query {
+    words(part: String!): [Word!]!
+  }
+
+  type Word {
+    id: Int!
+    content: String!
+  }
+`
+
+const resolvers = {
+  Query: {
+    async words(_, args, context) {
+      const { part } = args
+      const { prisma } = context
+      const words = await prisma.word.findMany({
+        where: {
+          content: {
+            contains: part,
+          },
+        },
+      })
+      return words
+    },
+  },
+}
+
+const apolloServer = new ApolloServer({
+  typeDefs,
+  resolvers,
+  context: () => {
+    return { prisma }
+  },
+})
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+}
+
+export default apolloServer.createHandler({ path: '/api/graphql' })
+```
+
+<Callout>
+  Note that we've made `prisma` available in the context object so that it will
+  be available in the resolvers, in case we want to split `typeDefs` and
+  `resolvers` into different files.
+</Callout>
+
+We can now visit
+
+```
+http://localhost:3300/api/graphql
+```
+
+(or whatever port on which Next.js is running) and execute queries, for example
+
+<br />
+
+import Image from 'next/image'
+
+<Image
+  src="/shots/graphql_playground.png"
+  alt="GraphQL Playground"
+  width={1536 / 2}
+  height={768 / 2}
+  layout="intrinsic"
+/>
+
+or
+
+```json
+query {
+  words(part: "lon") {
+    id
+    content
+  }
+}
+```
+
+the result of which will be
+
+```json
+{
+  "data": {
+    "words": [
+      {
+        "id": 30,
+        "content": "along"
+      },
+      {
+        "id": 487,
+        "content": "london"
+      },
+      {
+        "id": 488,
+        "content": "long"
+      }
+    ]
+  }
+}
+```
+
+This completes the backend part of the application. In the next section, we'll start building the frontend.

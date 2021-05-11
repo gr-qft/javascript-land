@@ -1,7 +1,8 @@
 {
-  "index": "What is Nextra",
-  "features": "Features",
-  "docs": "Docs Theme",
+  "index": "FullStack Next.js",
+  "input": "Building an Input Component",
+  "pagination": "Building a Pagination Page",
   "blog": "Blog Theme",
-  "advanced": "Advanced"
+  "advanced": "Advanced",
+  "sql": "PostgreSQL"
 }
