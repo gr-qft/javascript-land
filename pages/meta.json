@@ -2,7 +2,6 @@
   "index": "FullStack Next.js",
   "input": "Building an Input Component",
   "pagination": "Building a Pagination Page",
-  "blog": "Blog Theme",
-  "advanced": "Advanced",
-  "sql": "PostgreSQL"
+  "sql": "PostgreSQL",
+  "graphql": "GraphQL"
 }

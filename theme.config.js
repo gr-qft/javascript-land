@@ -1,5 +1,5 @@
 export default {
-  repository: 'https://github.com/shuding/nextra',
+  repository: 'https://github.com/gr-qft/javascript-land',
   titleSuffix: ' – JavascriptLand',
   logo: (
     <>
@@ -25,6 +25,6 @@ export default {
   prevLinks: true,
   nextLinks: true,
   footer: true,
-  footerEditOnGitHubLink: true,
+  footerEditOnGitHubLink: false,
   footerText: <>MIT {new Date().getFullYear()} © javascriptland.</>,
 }
